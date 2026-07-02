@@ -1,0 +1,18 @@
+# systemd unit for the analyze service (mini-PC). Milestone 0 skeleton.
+# Install: copy to /etc/systemd/system/, adjust WorkingDirectory, then
+#   sudo systemctl daemon-reload && sudo systemctl enable --now traffic-analyze
+[Unit]
+Description=Traffic Safety Logger - Analyze
+After=docker.service traffic-capture.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/traffic-safety-logger
+ExecStart=/usr/bin/docker compose up analyze
+ExecStop=/usr/bin/docker compose stop analyze
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

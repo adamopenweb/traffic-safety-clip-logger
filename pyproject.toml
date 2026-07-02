@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "traffic-safety-logger"
+version = "0.0.0"
+description = "Local-first traffic safety video logging system for a residential street."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "adamopenweb" }]
+keywords = ["traffic", "safety", "video", "yolo", "supervision", "opencv"]
+
+# Core runtime deps only. Kept deliberately light (pure-Python) so the CLI,
+# the `test` stub pipeline, and pytest run anywhere — including Windows
+# Python 3.14 — with no heavy/native installs. The computer-vision stack
+# lives in optional extras and is installed only by the Docker images.
+dependencies = [
+    "PyYAML>=6",
+    # IANA timezone database for zoneinfo. Linux usually has system tzdata, but
+    # Windows ships none, so event timestamps would silently fall back to UTC.
+    "tzdata>=2024.1",
+]
+
+[project.urls]
+Repository = "https://github.com/adamopenweb/traffic-safety-clip-logger"
+
+[project.optional-dependencies]
+# Installed in the CPU Docker image (Dockerfile). Real CV analysis stack.
+analyze = [
+    "numpy",
+    "opencv-python",
+    "supervision",
+    "ultralytics",
+]
+# Installed in the GPU Docker image (Dockerfile.gpu). torch/CUDA comes from
+# the PyTorch CUDA base image, so it is intentionally NOT pinned here.
+gpu = [
+    "numpy",
+    "opencv-python",
+    "supervision",
+    "ultralytics",
+]
+# Optional audio capture for the loud-engine rule (Milestone 8).
+audio = [
+    "numpy",
+    "sounddevice",
+]
+# The `serve` web dashboard (FastAPI + uvicorn). Auth is a custom ASGI gate that
+# 404s probers and unlocks via a secret link; the auth cookie is signed with
+# itsdangerous (also a Starlette dependency, declared here as we import it directly).
+web = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "itsdangerous>=2.0",
+]
+# Developer tooling — enough to run the test suite. Includes the web deps plus
+# httpx, which FastAPI's TestClient needs.
+dev = [
+    "pytest>=8",
+    "fastapi>=0.110",
+    "itsdangerous>=2.0",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+traffic-log = "traffic_logger.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Ship the dashboard's static assets (HTML/CSS/JS) inside the package so a
+# non-editable install can still serve the UI.
+[tool.setuptools.package-data]
+traffic_logger = ["web/static/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"

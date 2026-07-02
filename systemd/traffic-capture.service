@@ -1,0 +1,18 @@
+# systemd unit for the capture service (mini-PC). Milestone 0 skeleton.
+# Install: copy to /etc/systemd/system/, adjust WorkingDirectory, then
+#   sudo systemctl daemon-reload && sudo systemctl enable --now traffic-capture
+[Unit]
+Description=Traffic Safety Logger - Capture
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/traffic-safety-logger
+ExecStart=/usr/bin/docker compose up capture
+ExecStop=/usr/bin/docker compose stop capture
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

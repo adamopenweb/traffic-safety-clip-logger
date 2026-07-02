@@ -1,0 +1,22 @@
+# Slim capture image for the Ubuntu mini-PC appliance.
+#
+# Recording needs only ffmpeg + v4l-utils + the core (pure-Python) package -
+# NOT the torch/opencv analysis stack. Keeping this image lean means it builds
+# fast and runs comfortably on a modest mini-PC; heavy inference lives in the
+# separate analyze image (Dockerfile) on the RTX 4080 box.
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        v4l-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir .   # core deps only (PyYAML); no extras
+
+# Config and data are mounted at runtime; the camera device is passed in by
+# compose. No ENTRYPOINT so the full ["traffic-log", ...] command is explicit.
+CMD ["traffic-log", "capture", "--config", "/app/config/config.mini_pc.yaml"]

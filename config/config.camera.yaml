@@ -1,0 +1,315 @@
+# iSee CCIPB812-Z-4K live-analysis config — RTX 4080 box pulls the camera's
+# RTSP sub-stream and runs the full pipeline in real time.
+#
+# This is a TEMPLATE. Fill in CAMERA_IP / USER / PASS below, then either edit
+# this file locally or copy it to config/config.local.yaml (gitignored) so real
+# credentials never get committed. Run with:
+#   .venv/Scripts/python.exe -m traffic_logger.main analyze --config config/config.camera.yaml
+#
+# Architecture (permanent deployment): a SINGLE box (the RTX 4080) records the 4K
+# H.265 MAIN stream to the ring, analyzes it live on CUDA, and serves the dashboard
+# -- the deployed config is config/config.run.local.yaml (see DEPLOY.md). The old
+# mini-PC/4080 two-box split is retired. THIS file is a lighter analyze-only template
+# that pulls the SUB stream (source below is subtype=1); point it at subtype=0 for 4K.
+#
+# Dahua/IC-Realtime-style RTSP URLs (subtype selects the stream):
+#   main  (4K  ): rtsp://USER:PASS@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=0
+#   sub   (1080): rtsp://USER:PASS@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=1
+#   third       : rtsp://USER:PASS@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=2
+# If those 404, point an ONVIF tool at the camera to read the exact stream paths.
+
+app:
+  name: "traffic-safety-logger"
+  timezone: "America/Toronto"
+  log_level: "INFO"
+
+# Daylight schedule for `traffic-log supervise`: the camera can't see in full
+# dark, so run only civil-dawn..civil-dusk (computed per-date from lat/long) plus
+# a buffer. Set latitude/longitude for the deployment site.
+schedule:
+  enabled: false
+  # all_day: true keeps run alive 24/7 (record + analyze at night too). Leave false to
+  # gate to the civil-twilight window below (the camera is blind in full dark without a
+  # night exposure profile). Turn on only once the camera has a usable night exposure.
+  all_day: false
+  latitude: 43.26     # Hamilton, ON -- change for the site
+  longitude: -79.87
+  buffer_minutes: 20
+  check_interval_seconds: 60
+
+camera:
+  profile: "isee_ccipb812"
+  # Analysis pulls the SUB stream. This OEM caps the sub at 704x480 (D1) — fine
+  # once the lens is zoomed so the road fills the frame. If detection range is
+  # poor after mounting, switch source to the MAIN 4K stream (subtype=0).
+  source: "rtsp://USER:PASS@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=1"
+  capture_resolution: [704, 480]
+  capture_fps: 30
+  pixel_format_preference: ["H264", "H265"]
+  rotate_degrees: 0
+  flip_horizontal: false
+  flip_vertical: false
+
+recording:
+  # Single-box: the 4080 records the camera's 4K MAIN stream (subtype=0) by
+  # stream-copy (no CPU encode — the camera's H.265 hardware encoder does it).
+  # recording.source overrides camera.source (which points at the sub-stream the
+  # analyzer uses). Fill in USER/PASS/CAMERA_IP. ring_path is a Linux deploy path;
+  # override it for a local Windows test run.
+  enabled: true
+  source: "rtsp://USER:PASS@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=0"
+  codec: "h265"
+  encode_mode: "copy"
+  target_bitrate_mbps: 16
+  max_bitrate_mbps: 24
+  segment_seconds: 10
+  ring_max_gb: 200
+  ring_path: "/data/ring"
+  segment_index_path: "/data/index/segments.sqlite"
+
+network:
+  expose_rtsp: false
+  rtsp_port: 8554
+  rtsp_path: "/street"
+  stream_codec: "h265"
+  stream_bitrate_mbps: 16
+  stream_max_bitrate_mbps: 24
+  keyframe_interval_seconds: 1
+  reconnect: true
+
+analysis:
+  enabled: true
+  # Same RTSP sub-stream as camera.source (analyze reads this).
+  source: "rtsp://USER:PASS@CAMERA_IP:554/cam/realmonitor?channel=1&subtype=1"
+  # 4080 has ~5x headroom at 30fps; high fps is what keeps fast vehicles tracked.
+  inference_fps: 30
+  inference_input_size: 640
+  device: "cuda"
+  speed_window_seconds: 0.5
+  save_debug_video: true
+  save_debug_frames: false
+
+models:
+  detector_type: "yolov8"
+  yolo_model: "yolov8s.pt"
+  confidence_threshold: 0.35
+  iou_threshold: 0.5
+  vehicle_classes:
+    - "car"
+    - "truck"
+    - "bus"
+    - "motorcycle"
+
+tracking:
+  tracker_type: "bytetrack"
+  track_activation_threshold: 0.25
+  lost_track_buffer: 30
+  minimum_matching_threshold: 0.8
+  minimum_consecutive_frames: 3
+
+calibration:
+  # FILL IN after mounting: run `calibrate` on a grabbed frame to get the 4 road
+  # corners for THIS camera's view (different height/FOV than the porch webcam).
+  # Start in "relative" for the first live test; switch units to "meters" and set
+  # the two *_units to the measured metres the quad spans for real km/h.
+  mode: "relative"
+  # Radial lens de-warp applied BEFORE detection + calibration (straightens the
+  # barrel-bowed curbs/lanes). cv2 model, fx=fy=width, centre principal point ->
+  # k1 is resolution-independent (same value for 704x480 sub and 4K main).
+  undistort:
+    enabled: true
+    k1: -0.35
+    k2: 0.0
+    roll_degrees: 1.7   # cancel residual camera roll so the road sits level
+  # Road quad in DE-WARPED 704x480 space (TL,TR,BR,BL), far-curb to near-curb.
+  # Calibrated on the leveled camera view (2026-06-13).
+  source_points: [[5.5, 180.5], [695, 176], [696, 327], [5.5, 336.5]]
+  # Optional 3x3 homography mapping raw sub-stream px -> raw 4K px for clip
+  # annotation. Omit/null to assume the streams share FOV (pure resolution
+  # scale, the default). Only fit one (clicked correspondences) if boxes on the
+  # first annotated clip sit off the cars -- i.e. the sub is cropped vs the main.
+  # overlay_homography: null
+  units: "relative"
+  target_width_units: 1.0
+  target_length_units: 1.0
+  swap_axes: true   # road runs E-W (horizontal) across the frame
+  # Optional across-road km/h correction for an imperfect (non-metric) homography
+  # that makes far-lane speeds read low. Calibrate per-camera from known-speed
+  # drive-bys: measure a car's reported vs true km/h at two across-road positions
+  # (the analyzer logs each track's mean ground gx), then set the factors. km/h is
+  # divided by the gx-interpolated factor. Disabled until calibrated for the site.
+  speed_across_correction:
+    enabled: false
+    near_gx: 0.71
+    near_factor: 0.925
+    far_gx: 0.16
+    far_factor: 0.667
+  lane_model:
+    enabled: true
+    # Explicit per-band widths (far->near): bike_a, travel_a, center, travel_b,
+    # bike_b. Overrides the symmetric *_width_ratio below. These sit on the PAINT
+    # (clicked via scripts/calibrate_click.py); boundaries ~B1=6 B2=19 B3=39 B4=77.
+    band_widths: [0.0578, 0.1284, 0.2085, 0.3717, 0.2337]
+    # Shift the classification point toward the far curb (across units) to undo the
+    # tire-contact near-bias, so cars classify into their true lane while bands
+    # stay drawn on the paint. Tuned against traffic.
+    contact_bias: 0.06
+    bike_lane_width_ratio: 0.12
+    travel_lane_width_ratio: 0.28
+    center_lane_width_ratio: 0.20
+    auto_normalize: true
+
+events:
+  output_path: "/data/events"
+  speed_log_path: "/data/index/speed_log.sqlite"   # text log of every speeding violation
+  # Traffic denominator: log EVERY completed vehicle pass (not just violations) to the
+  # unified store, for total volume + the true % speeding. Filters parked cars and
+  # detection flickers. Needs calibration (projector); speeds null without metric mode.
+  passes:
+    enabled: true
+    db_path: "/data/index/traffic.sqlite"
+    finalize_after_frames: 20
+    min_track_age: 5
+    min_ground_span: 0.12
+  clip_total_seconds: 30
+  pre_roll_seconds: 10
+  post_roll_seconds: 20
+  thumbnail_time_offset_seconds: 15
+  cooldown_seconds: 8
+  merge_window_seconds: 12
+  # Write a companion "<name>_annotated.mp4" beside each clean evidence clip,
+  # with the tracked boxes + speed burned onto the 4K (flagged car red, the car
+  # it passed orange, other traffic green). The original clip stays untouched.
+  annotate_clips: true
+  # Draw the boxes by RE-DETECTING on the clip's own frames (same downscale + de-warp
+  # prep as analysis) instead of projecting live sub-stream boxes shifted by a sync
+  # offset. The clip-frame detection lands on the car BY CONSTRUCTION, so there's no
+  # sub<->4K offset to drift -- this is the durable fix the auto-align notes below
+  # call for, now built. The live track is used only to identify which detected
+  # vehicle is the flagged one. Runs once per event off the hot path, bounded to the
+  # car's on-screen window, so it can't fall behind real time. Falls back to the
+  # offset method below if the detector is unavailable / the track is too short; the
+  # annotate_sync_offset/align_radius keys then only seed the identity search + that
+  # fallback.
+  annotate_from_detection: true
+  # Per-clip auto-alignment (FALLBACK now that annotate_from_detection is on): the
+  # sub-stream/4K latency jitters between events, so
+  # no single static offset keeps boxes on cars. When on, the exporter detects the
+  # flagged car in a few sampled 4K frames and solves this clip's offset directly.
+  annotate_auto_align: true
+  # Fallback / search-centre for the offset (seconds added to the overlay lookup
+  # to advance boxes onto the car). Used when auto-align is off or finds no match;
+  # auto-align searches +-annotate_align_radius_seconds around it.
+  # NOTE (2026-06-24): the per-clip offset does NOT track a clean time-of-day curve --
+  # it wanders far wider and less predictably than first thought (seen ~-0.05 to ~2.0s
+  # within one evening). Two failure modes: (a) a good solve rails at the window edge
+  # and is rejected -> widen the window (this STOPGAP: [-0.8,2.0], centre 0.6 +- 1.4);
+  # (b) the 4K-frame detection used to solve FAILS to lock (dim light / small-fast cars)
+  # so the clip falls back to centre regardless of window -- widening can't fix (b).
+  # The durable fix is to stop syncing across streams: draw boxes from detection run
+  # directly on the 4K clip frames (no offset). Until then this is triage only.
+  annotate_sync_offset_seconds: 0.6
+  annotate_align_radius_seconds: 1.4
+  # Each clip trusts its own non-railed solve (the latency jitters per clip); the
+  # recent-solve median is only a fallback for railed/failed solves. No outlier
+  # override -- overriding good solves with the median trailed the boxes.
+  # Persist each clip's overlay slice + render params to "<name>_overlay.json" so
+  # the offset can be retuned offline and the clip re-rendered. Disable to save
+  # ~1-2 MB/event once the offset is dialed in.
+  annotate_save_overlay: true
+  # Overlay buffer headroom beyond the clip window. The annotation render is slow
+  # and serial, so during an event burst exports queue up; the buffer keeps this
+  # many extra seconds of snapshots so a delayed capture still has its frames.
+  annotate_buffer_headroom_seconds: 180
+
+  # Police-vehicle recognition (CLIP zero-shot, OpenCLIP ViT-B-32). When enabled,
+  # the live analyzer crops each passing vehicle from the de-warped sub-stream,
+  # scores "marked police vehicle vs ordinary car" on the GPU, and on track
+  # departure logs a sighting (with peak speed + whether it also tripped the
+  # speeding rule) to db_path. Query with `traffic-log police-report --hours N`.
+  # Best-effort: catches MARKED units, weaker at night / on unmarked cars.
+  # Needs the open_clip_torch package (downloads ~600MB of weights on first run).
+  police:
+    enabled: false
+    model: "ViT-B-32"
+    pretrained: "openai"
+    # device defaults to analysis.device (cuda) when unset.
+    confidence_threshold: 0.55  # MEAN police prob across a vehicle's samples
+    min_samples: 2              # require agreement across >=N frames (kills flukes)
+    min_track_age: 5            # frames before a track is worth classifying
+    sample_count: 4             # CLIP scorings per vehicle (max over them wins)
+    sample_every_frames: 6      # spacing between a track's samples
+    min_crop_px: 40             # skip vehicle crops smaller than this (too far)
+    # Two-stage cascade: the live sub-stream score pre-filters; any track over
+    # escalate_threshold is re-confirmed on full-res 4K frames pulled from the
+    # ring (project the sub bbox -> 4K, re-crop, re-score). Much higher precision
+    # than the low-res sub crop, and only escalated tracks pay the frame-pull.
+    confirm_4k: true
+    escalate_threshold: 0.35    # sub-mean gate to bother with 4K confirmation
+    confirm_samples: 2          # best frames to re-crop from the ring at 4K
+    db_path: "/data/index/police_sightings.sqlite"
+    # Optional prompt overrides (defaults live in analyze/police_classifier.py):
+    # police_prompts: ["a marked police car with a roof light bar", ...]
+    # civilian_prompts: ["an ordinary civilian car", ...]
+
+  aggressiveness: 0.3
+
+  relative_speeding:
+    enabled: true
+    # Absolute speed gate: once km/h is calibrated (units: meters, validated by a
+    # drive-by), set this to the posted limit + margin to flag on TRUE speed and
+    # bypass the relative percentile. Leave null for the relative rule (the
+    # default for an uncalibrated deployment).
+    absolute_kmh_threshold: null
+    absolute_min_duration_seconds: 0.3
+    # Two-tier: log every violation over absolute_kmh_threshold, but only KEEP a
+    # clip when speed >= clip_kmh_threshold. null = clip every violation.
+    clip_kmh_threshold: null
+    # Relative percentile fallback (used when absolute_kmh_threshold is null):
+    percentile_threshold_strict: 0.97
+    percentile_threshold_sensitive: 0.90
+    min_duration_seconds_strict: 0.8
+    min_duration_seconds_sensitive: 0.4
+    min_tracks_for_baseline: 20
+    rolling_window_minutes: 60
+
+  center_lane_pass:
+    enabled: true
+    center_lane_min_time_seconds_strict: 0.8
+    center_lane_min_time_seconds_sensitive: 0.4
+    speed_percentile_threshold_strict: 0.90
+    speed_percentile_threshold_sensitive: 0.80
+    detect_overtake: true
+    overtake_min_advance: 0.12   # min relative road-length gain for a real pass; below this is noise (slow center-turn-lane traffic was false-flagged as overtakes)
+    overtake_window_seconds: 6
+    # Only flag passes in this travel direction. Right-to-left traffic (the far
+    # lane) often enters the center turn lane legitimately to reach a nearby
+    # turn, so it is mostly noise; left-to-right at speed has no such excuse.
+    # NOTE: "left_to_right" is an opaque internal label (sign of travel along the
+    # projected road axis), not guaranteed to equal visual frame left-to-right --
+    # confirm against a known clip and flip to "right_to_left" if reversed.
+    directions:
+      - left_to_right
+
+audio:
+  enabled: false
+  source: "default"
+  sample_rate: 16000
+  window_seconds: 0.25
+  loud_engine:
+    enabled: true
+    db_over_baseline_strict: 12
+    db_over_baseline_sensitive: 6
+    min_duration_seconds: 0.5
+    baseline_window_minutes: 10
+    boost_visual_event_score: true
+
+privacy:
+  blur_faces: false
+  blur_plates: false
+  plate_recognition: false
+
+debug:
+  draw_tracks: true
+  draw_lane_bands: true
+  draw_event_labels: true

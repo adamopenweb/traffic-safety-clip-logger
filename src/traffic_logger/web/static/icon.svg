@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs>
+<radialGradient id="tw-bg" cx="50%" cy="40%" r="75%">
+  <stop offset="0%" stop-color="#1a2530"/><stop offset="55%" stop-color="#121922"/><stop offset="100%" stop-color="#0F1419"/>
+</radialGradient>
+<radialGradient id="tw-eyeFill" cx="50%" cy="50%" r="60%">
+  <stop offset="0%" stop-color="#15243a"/><stop offset="100%" stop-color="#0e1620"/>
+</radialGradient>
+<radialGradient id="tw-irisFill" cx="50%" cy="46%" r="62%">
+  <stop offset="0%" stop-color="#1a3050"/><stop offset="70%" stop-color="#102136"/><stop offset="100%" stop-color="#0b1622"/>
+</radialGradient>
+<radialGradient id="tw-irisGlow" cx="50%" cy="50%" r="50%">
+  <stop offset="0%" stop-color="#4AA8FF" stop-opacity="0.45"/><stop offset="55%" stop-color="#2b6bb0" stop-opacity="0.15"/><stop offset="100%" stop-color="#4AA8FF" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="tw-road" x1="0" y1="1" x2="0" y2="0">
+  <stop offset="0%" stop-color="#33506e"/><stop offset="100%" stop-color="#13202e"/>
+</linearGradient>
+<radialGradient id="tw-pupil" cx="42%" cy="38%" r="70%">
+  <stop offset="0%" stop-color="#16202c"/><stop offset="100%" stop-color="#070a0e"/>
+</radialGradient>
+<filter id="tw-glow" x="-60%" y="-60%" width="220%" height="220%">
+  <feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+<filter id="tw-glowAmber" x="-120%" y="-120%" width="340%" height="340%">
+  <feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+<clipPath id="tw-irisClip"><circle cx="512" cy="512" r="153"/></clipPath>
+</defs>
+<rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#tw-bg)"/>
+<rect x="3" y="3" width="1018" height="1018" rx="229" fill="none" stroke="#4AA8FF" stroke-opacity="0.14" stroke-width="2.5"/>
+<circle cx="512" cy="506" r="300" fill="url(#tw-irisGlow)"/>
+<path d="M 196 512 Q 512 326 828 512 Q 512 698 196 512 Z" fill="url(#tw-eyeFill)"/>
+<path d="M 196 512 Q 512 326 828 512 Q 512 698 196 512 Z" fill="none" stroke="#4AA8FF" stroke-width="11" stroke-linejoin="round" filter="url(#tw-glow)"/>
+<circle cx="512" cy="512" r="155" fill="url(#tw-irisFill)"/>
+<circle cx="512" cy="512" r="155" fill="none" stroke="#4AA8FF" stroke-opacity="0.42" stroke-width="3"/>
+<g clip-path="url(#tw-irisClip)">
+  <path d="M 446 700 C 466 606 484 558 499 520 L 525 520 C 542 558 562 606 584 700 Z" fill="url(#tw-road)"/>
+  <rect x="505" y="612" width="11" height="30" rx="3" fill="#cfe3f7" fill-opacity="0.6"/>
+  <rect x="506" y="566" width="8" height="21" rx="3" fill="#cfe3f7" fill-opacity="0.5"/>
+  <rect x="507" y="535" width="6" height="14" rx="3" fill="#cfe3f7" fill-opacity="0.42"/>
+</g>
+<g filter="url(#tw-glow)">
+  <line x1="410.01" y1="553.21" x2="379.41" y2="565.57" stroke="#6FB8FF" stroke-width="6" stroke-linecap="round"/>
+<line x1="392.00" y1="511.16" x2="369.00" y2="511.00" stroke="#3D7FB8" stroke-width="3" stroke-linecap="round"/>
+<line x1="410.60" y1="469.37" x2="380.17" y2="456.59" stroke="#6FB8FF" stroke-width="6" stroke-linecap="round"/>
+<line x1="427.44" y1="426.85" x2="411.24" y2="410.53" stroke="#3D7FB8" stroke-width="3" stroke-linecap="round"/>
+<line x1="470.08" y1="410.30" x2="457.51" y2="379.79" stroke="#6FB8FF" stroke-width="6" stroke-linecap="round"/>
+<line x1="512.00" y1="392.00" x2="512.00" y2="369.00" stroke="#3D7FB8" stroke-width="3" stroke-linecap="round"/>
+<line x1="553.92" y1="410.30" x2="566.49" y2="379.79" stroke="#6FB8FF" stroke-width="6" stroke-linecap="round"/>
+<line x1="596.56" y1="426.85" x2="612.76" y2="410.53" stroke="#3D7FB8" stroke-width="3" stroke-linecap="round"/>
+<line x1="632.00" y1="511.16" x2="655.00" y2="511.00" stroke="#3D7FB8" stroke-width="3" stroke-linecap="round"/>
+<line x1="613.99" y1="553.21" x2="644.59" y2="565.57" stroke="#6FB8FF" stroke-width="6" stroke-linecap="round"/>
+</g>
+<line x1="611.56" y1="470.15" x2="646.59" y2="455.42" stroke="#FFB02E" stroke-width="9" stroke-linecap="round" filter="url(#tw-glowAmber)"/>
+<line x1="512" y1="512" x2="618.94" y2="467.05" stroke="#FFB02E" stroke-width="7" stroke-linecap="round" filter="url(#tw-glowAmber)"/>
+<circle cx="512" cy="512" r="35" fill="url(#tw-pupil)"/>
+<circle cx="512" cy="512" r="35" fill="none" stroke="#4AA8FF" stroke-opacity="0.5" stroke-width="3"/>
+<circle cx="500" cy="500" r="9" fill="#cfe3f7" fill-opacity="0.35"/>
+</svg>

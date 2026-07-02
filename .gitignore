@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment / secrets
+.env
+config/*.local.yaml
+
+# Model weights and exported engines (not source-controlled)
+*.pt
+*.onnx
+*.engine
+
+# Video / media artifacts
+*.mp4
+*.mkv
+*.avi
+*.mov
+
+# Runtime data — keep the folder, ignore contents
+data/*
+!data/.gitkeep
+
+# Sample videos — keep README + .gitkeep, ignore actual clips
+samples/*
+!samples/.gitkeep
+!samples/README.md
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

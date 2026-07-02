@@ -1,0 +1,32 @@
+# Core test suite. Deliberately requires no camera, no GPU, and no CV stack:
+# the pipeline is exercised with a scripted detector + synthetic data, and the
+# web tests run via the dev extra (FastAPI TestClient). See README "Requirements".
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # ffmpeg unlocks the recorder/export integration tests on Linux; where it
+      # is absent those tests skip themselves, so Windows runs without it.
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install
+        run: pip install -e .[dev]
+      - name: Test
+        run: pytest -q

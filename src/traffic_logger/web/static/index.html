@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1419" />
+  <title>Traffic Watch</title>
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+  <link rel="icon" href="/static/favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+  <link rel="manifest" href="/static/manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Traffic Watch" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Locked overlay (shown after sign-out; entry is via the secret link) -->
+  <div id="locked" class="login hidden">
+    <div class="login-card">
+      <h1>🔒 Locked</h1>
+      <p class="muted">Open your secret link again to return.</p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-ico">🚗</span><span class="brand-txt"> Traffic Watch</span></div>
+      <nav class="tabs">
+        <button data-view="now" class="tab active">Now</button>
+        <button data-view="browse" class="tab">Browse</button>
+        <button data-view="hall" class="tab" title="Top Speeds">Top</button>
+        <button data-view="stats" class="tab">Stats</button>
+        <button data-view="speed" class="tab" title="Speed test">Speed</button>
+      </nav>
+      <button id="refresh" class="ghost icon" title="Refresh" aria-label="Refresh">↻</button>
+      <button id="logout" class="ghost" title="Sign out">Sign out</button>
+    </header>
+
+    <main>
+      <!-- NOW -->
+      <section id="view-now" class="view">
+        <div id="now-stats" class="statgrid"></div>
+        <h2 class="section-title">Latest fast clips <span id="now-thresh" class="muted"></span></h2>
+        <div id="now-reel" class="cardgrid"></div>
+      </section>
+
+      <!-- TOP SPEEDS -->
+      <section id="view-hall" class="view hidden">
+        <h2 class="section-title">🏁 Top Speeds <span id="hall-thresh" class="muted"></span></h2>
+        <p class="muted hall-sub">The fastest passes on record, well over the 50 km/h limit. Fastest first.</p>
+        <div id="hall-grid" class="cardgrid"></div>
+        <p id="hall-empty" class="muted center hidden">No one's hit the threshold yet.</p>
+        <div id="hall-hidden-wrap" class="hidden">
+          <button id="hall-hidden-toggle" class="ghost hidden-toggle">Show hidden (0)</button>
+          <div id="hall-hidden-grid" class="cardgrid hidden"></div>
+        </div>
+      </section>
+
+      <!-- BROWSE -->
+      <section id="view-browse" class="view hidden">
+        <div class="filters">
+          <label>Speed
+            <select id="f-speed">
+              <option value="0">All</option>
+              <option value="55">55+</option>
+              <option value="65">65+</option>
+              <option value="70">70+</option>
+              <option value="80">80+</option>
+            </select>
+          </label>
+          <label>Type
+            <select id="f-type">
+              <option value="">All</option>
+              <option value="relative_speeding">Speeding</option>
+              <option value="center_lane_pass">Center-lane</option>
+            </select>
+          </label>
+          <label>Range
+            <select id="f-days">
+              <option value="0">All time</option>
+              <option value="1">Today</option>
+              <option value="7">7 days</option>
+              <option value="30" selected>30 days</option>
+            </select>
+          </label>
+          <label>Day
+            <input type="date" id="f-date" title="Jump to a specific day (overrides Range)" />
+          </label>
+        </div>
+        <div id="browse-grid" class="cardgrid"></div>
+        <p id="browse-empty" class="muted center hidden">No clips match these filters.</p>
+        <div class="center" style="margin-top:12px"><button id="browse-more" class="ghost hidden">Load more</button></div>
+      </section>
+
+      <!-- STATS -->
+      <section id="view-stats" class="view hidden">
+        <div class="filters">
+          <label>Range
+            <select id="s-days">
+              <option value="7">7 days</option>
+              <option value="30" selected>30 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </label>
+        </div>
+        <p id="stats-note" class="muted center hidden"></p>
+        <div id="stats-summary" class="statgrid"></div>
+        <div class="chart-card"><h3>Violations per day</h3><div id="chart-daily"></div></div>
+        <div class="chart-card"><h3>By hour of day</h3><div id="chart-hourly"></div></div>
+        <div class="chart-card"><h3>Speed distribution</h3><div id="chart-dist"></div></div>
+        <div class="chart-card"><h3>By vehicle type</h3><div id="chart-vehicles"></div></div>
+      </section>
+      <!-- SPEED TEST -->
+      <section id="view-speed" class="view hidden">
+        <div class="clock-card">
+          <div class="clock-lbl">PC clock — match your drive-by to this</div>
+          <div id="pc-clock" class="clock">--:--:--</div>
+        </div>
+        <p class="muted hall-sub">Drive past at a known GPS speed, note the PC clock, then tap your pass below and enter the true speed. Slow passes count too — every vehicle is measured.</p>
+        <div class="filters">
+          <label>Window
+            <select id="sp-mins">
+              <option value="5">Last 5 min</option>
+              <option value="10" selected>Last 10 min</option>
+              <option value="20">Last 20 min</option>
+              <option value="60">Last 60 min</option>
+            </select>
+          </label>
+        </div>
+        <h2 class="section-title">Recent passes <span class="muted">tap the one that was you</span></h2>
+        <div id="sp-passes" class="sp-list"></div>
+        <p id="sp-passes-empty" class="muted center hidden">No measured passes in this window yet.</p>
+        <h2 class="section-title">Logged tests</h2>
+        <div id="sp-log" class="sp-list"></div>
+        <p id="sp-log-empty" class="muted center hidden">No tests logged yet.</p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Video modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-bg"></div>
+    <div class="modal-inner">
+      <button id="modal-close" class="modal-close">✕</button>
+      <video id="player" controls playsinline preload="metadata"></video>
+      <div class="modal-meta">
+        <div id="modal-title"></div>
+        <div class="modal-actions">
+          <button id="hall-btn" class="ghost hidden" type="button"></button>
+          <label id="annot-toggle-wrap" class="annot-toggle hidden">
+            <input type="checkbox" id="annot-toggle" checked /> Annotated
+          </label>
+          <a id="dl-btn" class="dl-btn" href="#" download>⬇ Download</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

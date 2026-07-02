@@ -1,0 +1,25 @@
+.git
+.gitignore
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Runtime data and large media are mounted as volumes, never baked into images
+data/
+samples/*.mp4
+samples/*.mkv
+samples/*.avi
+*.pt
+*.onnx
+*.engine
+
+# Local plans / editor cruft
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,137 @@
+# Mini-PC deployment config — Ubuntu appliance near the camera.
+# Live camera capture + 200GB ring buffer on CPU. RTSP exposed for the
+# optional remote 4080 analysis path. Do NOT assume CUDA here.
+
+app:
+  name: "traffic-safety-logger"
+  timezone: "America/Toronto"
+  log_level: "INFO"
+
+camera:
+  profile: "astra_mini"
+  source: "/dev/video0"
+  capture_resolution: [1280, 960]
+  capture_fps: 30
+  # Prefer the camera's hardware H.264 (stream-copied, no CPU encode), then
+  # MJPG, then raw YUYV. A weak mini-PC cannot software-encode 720p+/30fps.
+  pixel_format_preference: ["H264", "MJPG", "YUYV"]
+  rotate_degrees: 0
+  flip_horizontal: false
+  flip_vertical: false
+
+recording:
+  enabled: true
+  codec: "h264"
+  # auto: stream-copy an H.264 camera input, re-encode a raw one. copy | h264 force it.
+  encode_mode: "auto"
+  target_bitrate_mbps: 10
+  max_bitrate_mbps: 15
+  segment_seconds: 10
+  ring_max_gb: 200
+  ring_path: "/data/ring"
+  segment_index_path: "/data/index/segments.sqlite"
+
+network:
+  expose_rtsp: true
+  rtsp_port: 8554
+  rtsp_path: "/street"
+  stream_codec: "h264"
+  stream_bitrate_mbps: 8
+  stream_max_bitrate_mbps: 12
+  keyframe_interval_seconds: 1
+  reconnect: true
+
+analysis:
+  enabled: true
+  source: "file_or_stream"
+  # Mini-PC has no GPU — run analysis at a reduced FPS on CPU, or disable.
+  inference_fps: 6
+  inference_input_size: 640
+  device: "cpu"
+  save_debug_video: false
+  save_debug_frames: false
+
+models:
+  detector_type: "yolov8"
+  # Lightweight model for CPU inference on the mini-PC.
+  yolo_model: "yolov8n.pt"
+  confidence_threshold: 0.35
+  iou_threshold: 0.5
+  vehicle_classes:
+    - "car"
+    - "truck"
+    - "bus"
+    - "motorcycle"
+
+tracking:
+  tracker_type: "bytetrack"
+  track_activation_threshold: 0.25
+  lost_track_buffer: 30
+  minimum_matching_threshold: 0.8
+  minimum_consecutive_frames: 3
+
+calibration:
+  mode: "relative"
+  source_points: []
+  units: "relative"   # "relative" | "meters" (set the two *_units below in metres for km/h)
+  target_width_units: 1.0
+  target_length_units: 1.0
+  swap_axes: "auto"   # "auto" | true | false ; true for a horizontally-running road
+  lane_model:
+    enabled: true
+    bike_lane_width_ratio: 0.12
+    travel_lane_width_ratio: 0.28
+    center_lane_width_ratio: 0.20
+    auto_normalize: true
+
+events:
+  output_path: "/data/events"
+  clip_total_seconds: 30
+  pre_roll_seconds: 10
+  post_roll_seconds: 20
+  thumbnail_time_offset_seconds: 15
+  cooldown_seconds: 8
+  merge_window_seconds: 12
+
+  aggressiveness: 0.3
+
+  relative_speeding:
+    enabled: true
+    percentile_threshold_strict: 0.97
+    percentile_threshold_sensitive: 0.90
+    min_duration_seconds_strict: 0.8
+    min_duration_seconds_sensitive: 0.4
+    min_tracks_for_baseline: 20
+    rolling_window_minutes: 60
+
+  center_lane_pass:
+    enabled: true
+    center_lane_min_time_seconds_strict: 0.8
+    center_lane_min_time_seconds_sensitive: 0.4
+    speed_percentile_threshold_strict: 0.90
+    speed_percentile_threshold_sensitive: 0.80
+    detect_overtake: true
+    overtake_window_seconds: 6
+
+audio:
+  enabled: false
+  source: "default"
+  sample_rate: 16000
+  window_seconds: 0.25
+  loud_engine:
+    enabled: true
+    db_over_baseline_strict: 12
+    db_over_baseline_sensitive: 6
+    min_duration_seconds: 0.5
+    baseline_window_minutes: 10
+    boost_visual_event_score: true
+
+privacy:
+  blur_faces: false
+  blur_plates: false
+  plate_recognition: false
+
+debug:
+  draw_tracks: true
+  draw_lane_bands: true
+  draw_event_labels: true

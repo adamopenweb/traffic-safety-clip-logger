@@ -1,0 +1,16 @@
+{
+  "name": "Traffic Watch",
+  "short_name": "Traffic Watch",
+  "description": "Neighbourhood traffic-safety camera dashboard.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1419",
+  "theme_color": "#0f1419",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icon.svg", "type": "image/svg+xml", "sizes": "any" }
+  ]
+}

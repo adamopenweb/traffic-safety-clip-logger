@@ -1,0 +1,18 @@
+# GPU-capable image — for RTX 4080 development/testing under WSL2.
+# Base image already ships torch + CUDA runtime, so torch is NOT reinstalled
+# by pip (it is intentionally excluded from the [gpu] extra).
+FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libgl1 \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir .[gpu]
+
+CMD ["traffic-log", "--help"]

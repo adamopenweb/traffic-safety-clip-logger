@@ -1,0 +1,54 @@
+# Docker Compose for the Traffic Safety Clip Logger.
+#
+#   capture / analyze  -> CPU image (Dockerfile), mini-PC appliance.
+#   analyze-gpu        -> GPU image (Dockerfile.gpu), RTX 4080 dev box.
+#
+# The /dev/video0 device mount on `capture`/`analyze` is mini-PC-only; on a box
+# without the camera, run `analyze-gpu` against a sample file instead.
+
+services:
+  capture:
+    build:
+      context: .
+      dockerfile: Dockerfile.capture   # slim: ffmpeg + core only, no torch
+    restart: unless-stopped
+    volumes:
+      - ./config:/app/config
+      - ./data:/data
+    devices:
+      - "/dev/video0:/dev/video0"
+    command: ["traffic-log", "capture", "--config", "/app/config/config.mini_pc.yaml"]
+    healthcheck:
+      # Unhealthy if no fresh segment has been written recently.
+      test: ["CMD", "traffic-log", "health", "--config", "/app/config/config.mini_pc.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  analyze:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./config:/app/config
+      - ./data:/data
+    command: ["traffic-log", "analyze", "--config", "/app/config/config.mini_pc.yaml"]
+
+  # GPU development/testing on WSL2 RTX 4080. Runs the offline stub against a
+  # sample clip; needs the NVIDIA Container Toolkit on the host.
+  analyze-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    volumes:
+      - ./config:/app/config
+      - ./data:/data
+      - ./samples:/samples
+    command: ["traffic-log", "test", "--source", "/samples/street-test.mp4", "--config", "/app/config/config.dev.yaml"]

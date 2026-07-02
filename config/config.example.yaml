@@ -1,0 +1,153 @@
+# Traffic Safety Clip Logger — fully documented example config.
+# Copy to config.dev.yaml / config.mini_pc.yaml and adjust per environment.
+
+app:
+  name: "traffic-safety-logger"
+  timezone: "America/Toronto"
+  log_level: "INFO"
+
+camera:
+  profile: "astra_mini"
+  source: "/dev/video0"
+  capture_resolution: [1280, 960]
+  capture_fps: 30
+  # Try formats in order. "H264" uses the camera's hardware encoder (recording
+  # stream-copies it, no CPU encode); "MJPG"/"YUYV"/"RGB3" are raw and get
+  # re-encoded. Prefer H264/MJPG on weak hosts that can't software-encode.
+  pixel_format_preference: ["H264", "MJPG", "YUYV"]
+  rotate_degrees: 0
+  flip_horizontal: false
+  flip_vertical: false
+
+recording:
+  enabled: true
+  codec: "h264"
+  # "auto" stream-copies an H.264 camera input and re-encodes a raw one.
+  # "copy" forces passthrough; "h264" forces libx264 re-encoding.
+  encode_mode: "auto"
+  target_bitrate_mbps: 10
+  max_bitrate_mbps: 15
+  segment_seconds: 10
+  ring_max_gb: 200
+  ring_path: "/data/ring"
+  segment_index_path: "/data/index/segments.sqlite"
+
+network:
+  expose_rtsp: true
+  rtsp_port: 8554
+  rtsp_path: "/street"
+  stream_codec: "h264"
+  stream_bitrate_mbps: 8
+  stream_max_bitrate_mbps: 12
+  keyframe_interval_seconds: 1
+  reconnect: true
+
+analysis:
+  enabled: true
+  source: "file_or_stream"
+  inference_fps: 12
+  inference_input_size: 640
+  device: "auto"
+  save_debug_video: false
+  save_debug_frames: false
+
+models:
+  detector_type: "yolov8"
+  yolo_model: "yolov8s.pt"
+  confidence_threshold: 0.35
+  iou_threshold: 0.5
+  vehicle_classes:
+    - "car"
+    - "truck"
+    - "bus"
+    - "motorcycle"
+
+tracking:
+  tracker_type: "bytetrack"
+  track_activation_threshold: 0.25
+  lost_track_buffer: 30
+  minimum_matching_threshold: 0.8
+  minimum_consecutive_frames: 3
+
+calibration:
+  mode: "relative"
+  # Optional radial lens de-warp applied before detection + calibration. Wide
+  # lenses bow straight curbs/lanes (barrel distortion), which breaks the planar
+  # homography and the 4-point road quad. Tune k1 (negative corrects barrel)
+  # until known-straight lines are straight; k1 is resolution-independent
+  # (cv2 model, fx=fy=width, centre principal point). Pick source_points on the
+  # DE-WARPED frame. Disabled by default.
+  undistort:
+    enabled: false
+    k1: 0.0
+    k2: 0.0
+  source_points: []
+  # units: "relative" (normalized speed, no measurements) or "meters" (report
+  # km/h). When "meters", set target_width_units / target_length_units to the
+  # REAL distances (metres) the calibration quad spans across and along the road
+  # (measure them, e.g. with Google Maps "measure distance").
+  units: "relative"
+  target_width_units: 1.0
+  target_length_units: 1.0
+  # Which projected axis is "across the road" (lanes). "auto" picks it from the
+  # calibration quad's shape (travel = longer visual extent); set true/false to
+  # force it. Use true when the road runs horizontally across the frame.
+  swap_axes: "auto"
+  lane_model:
+    enabled: true
+    bike_lane_width_ratio: 0.12
+    travel_lane_width_ratio: 0.28
+    center_lane_width_ratio: 0.20
+    auto_normalize: true
+
+events:
+  output_path: "/data/events"
+  clip_total_seconds: 30
+  pre_roll_seconds: 10
+  post_roll_seconds: 20
+  thumbnail_time_offset_seconds: 15
+  cooldown_seconds: 8
+  merge_window_seconds: 12
+
+  aggressiveness: 0.3
+
+  relative_speeding:
+    enabled: true
+    percentile_threshold_strict: 0.97
+    percentile_threshold_sensitive: 0.90
+    min_duration_seconds_strict: 0.8
+    min_duration_seconds_sensitive: 0.4
+    min_tracks_for_baseline: 20
+    rolling_window_minutes: 60
+
+  center_lane_pass:
+    enabled: true
+    center_lane_min_time_seconds_strict: 0.8
+    center_lane_min_time_seconds_sensitive: 0.4
+    speed_percentile_threshold_strict: 0.90
+    speed_percentile_threshold_sensitive: 0.80
+    detect_overtake: true
+    overtake_window_seconds: 6
+
+audio:
+  enabled: false
+  source: "default"
+  sample_rate: 16000
+  window_seconds: 0.25
+  loud_engine:
+    enabled: true
+    db_over_baseline_strict: 12
+    db_over_baseline_sensitive: 6
+    min_duration_seconds: 0.5
+    baseline_window_minutes: 10
+    boost_visual_event_score: true
+
+privacy:
+  blur_faces: false
+  blur_plates: false
+  plate_recognition: false
+
+debug:
+  draw_tracks: true
+  draw_lane_bands: true
+  draw_event_labels: true
