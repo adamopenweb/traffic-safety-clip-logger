@@ -339,9 +339,43 @@ passing → 6. Event clip export → 7. **Live deployment** (landed as a single
 Windows box rather than the planned mini-PC POC), all complete. Remaining:
 8. Optional audio (loud-engine rule, stubbed).
 
-## Privacy
+## Licensing
+
+Project code is MIT (see [LICENSE](LICENSE)). Optional ML dependencies keep
+their own licenses; notably, **Ultralytics YOLOv8 is AGPL-3.0**, which carries
+source-disclosure obligations for combined works, including network use. This
+project imports it as an optional runtime dependency and vendors none of it,
+and the `Detector` interface is abstract precisely so YOLO can be swapped out.
+Review [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before any commercial
+use.
+
+## Privacy & responsible use
 
 Personal traffic-safety logging and review only. **No** license-plate
 recognition, **no** driver/face identification, **no** blurring by default. The
 software does not claim legal-grade evidence quality or enforcement-grade speed
-accuracy.
+accuracy. These boundaries were designed in from the first line of the spec
+(see the "Privacy / Safety Defaults" and "Out of Scope" sections of
+[`traffic.md`](traffic.md)), not retrofitted.
+
+If you deploy something like this yourself, the working rules this project
+operates by:
+
+- **Keep footage local.** Recording, analysis, and storage stay on your own
+  hardware. Nothing is uploaded anywhere; the dashboard only reads local
+  stores and sits behind an authenticated gate.
+- **Point it at public space only.** A public roadway carries no reasonable
+  expectation of privacy; aim and calibrate so private property (yards,
+  windows, doorways) stays out of the analysis region and, as far as
+  practical, out of frame.
+- **Retention is bounded by design.** The ring buffer prunes itself (~9 days
+  here). Event clips are the only long-lived footage, and they are a curated
+  handful per day, not an archive.
+- **Never publish identifiable footage.** Redact faces and plates before any
+  clip or screenshot leaves your machine. This repository publishes none.
+- **No automated enforcement.** Output is for human review and community
+  conversation (traffic-calming requests, city engagement), never automated
+  reporting of individuals. The spec lists this as explicitly out of scope.
+- **Know your local law.** This deployment operates under Canadian/Ontario
+  norms for video recording of public space (and records no audio); check
+  the rules where you live before deploying.

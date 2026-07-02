@@ -1,5 +1,13 @@
 # claude.md — Traffic Safety Clip Logger
 
+> *This is the original build brief that drove development, preserved as
+> written. Some assumptions were superseded during the project: notably, the
+> Ubuntu mini-PC + Orbbec Astra Mini capture appliance described below was
+> replaced by a single Windows box recording a 4K RTSP camera (see the README
+> and DEPLOY.md for what actually shipped), and the ring buffer grew from
+> 200 GB to 300 GB. The spec is kept as-is because the delta between plan and
+> shipped system is part of the story.*
+
 ## Project Summary
 
 Build a local-first traffic safety video logging system for a residential street. The system continuously records video from an outdoor camera, analyzes traffic for unsafe driving behavior, and automatically saves short evidence clips into event folders for later review.
