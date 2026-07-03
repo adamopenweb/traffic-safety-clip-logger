@@ -109,12 +109,43 @@ multiple short tracks: ~12% of near-lane passes were unmeasurable vs ~1% in
 the far lane.
 
 **What shipped.** Analyze the 4K main stream at 30 fps. That was initially
-impossible: the lens de-warp remap on a full 4K frame costs ~44 ms, capping the
-pipeline at ~14 fps. The fix is ordering. **Downscale to 1280 px wide first,
-then de-warp** (~5 ms). Detection is unaffected (YOLO resizes internally
-anyway) and the speed scale is preserved because the homography works in
-normalized coordinates; only the calibration points scale
-(`analyze/live.py`, `analysis.analyze_max_width`).
+impossible: measured inside the loaded live pipeline, the lens de-warp remap
+on a full 4K frame cost ~44 ms, capping the pipeline at ~14 fps. The fix is
+ordering. **Downscale to 1280 px wide first, then de-warp** (~1.5 ms for
+both). Detection is unaffected (YOLO resizes internally anyway) and the speed
+scale is preserved because the homography works in normalized coordinates;
+only the calibration points scale (`analyze/live.py`,
+`analysis.analyze_max_width`).
+
+**The frame budget, measured.** At 30 fps the analysis loop owns **33.3 ms
+per frame**. Stage medians, benchmarked on the deployment box (RTX 4080)
+*while the production analyzer was running*:
+
+| Stage | Where it runs | Median |
+| --- | --- | --- |
+| H.265→pixels video encode | the camera's hardware encoder | 0 ms (not our silicon) |
+| 4K frame decode | dedicated grabber thread | ~10 ms, off the loop |
+| Downscale 3840→1280 px | analysis loop | 0.6 ms |
+| Lens de-warp remap @1280 | analysis loop | 0.9 ms |
+| YOLOv8s inference @1280 (CUDA) | analysis loop | 6.5 ms |
+| ByteTrack + track store + road projection | analysis loop | <0.1 ms |
+| Rules + overlay bookkeeping | analysis loop | <0.1 ms |
+| **Analysis-loop total** | | **~8 ms of 33.3** |
+
+(The rejected full-4K remap measures ~7 ms standalone on an unloaded CPU; the
+~44 ms figure above is what it cost *inside* the contended pipeline, which is
+the number that matters.)
+
+The budget is managed less by making stages fast than by **deciding what
+never enters the loop at all**: encoding stays on the camera, decoding stays
+on the grabber thread (which also implements the drop policy — the loop
+always takes the freshest frame and never queues), clip export and the
+annotated 4K render run on their own worker, and the police classifier ran as
+an async pipeline with bounded queues that drop under backpressure. The ~4×
+headroom that leaves is not waste; it's what absorbs bursts (multi-car frames,
+exporter contention during an event) without dropping to the fragmentation
+regime this whole section exists to avoid. The ring-mode revert below is the
+measured counterexample of what happens when the loop carries too much.
 
 **Related experiment, reverted.** Reading frames from the recorded ring instead
 of a live RTSP connection would fix annotation sync *structurally* (analyze
