@@ -123,14 +123,18 @@ per frame**. Stage medians, benchmarked on the deployment box (RTX 4080)
 
 | Stage | Where it runs | Median |
 | --- | --- | --- |
-| H.265→pixels video encode | the camera's hardware encoder | 0 ms (not our silicon) |
-| 4K frame decode | dedicated grabber thread | ~10 ms, off the loop |
-| Downscale 3840→1280 px | analysis loop | 0.6 ms |
-| Lens de-warp remap @1280 | analysis loop | 0.9 ms |
-| YOLOv8s inference @1280 (CUDA) | analysis loop | 6.5 ms |
-| ByteTrack + track store + road projection | analysis loop | <0.1 ms |
+| Video encode | the camera's hardware encoder | 0 ms (not our silicon) |
+| 4K H.265 frame decode | dedicated grabber thread | ~11 ms, off the loop |
+| Downscale 3840→1280 px | analysis loop | 0.7 ms |
+| Lens de-warp remap @1280 | analysis loop | 1.0 ms |
+| YOLOv8s inference @1280 (CUDA) | analysis loop | ~10 ms |
+| ByteTrack + track store + road projection | analysis loop | 0.2 ms |
 | Rules + overlay bookkeeping | analysis loop | <0.1 ms |
-| **Analysis-loop total** | | **~8 ms of 33.3** |
+| **Analysis-loop total** | | **~12 ms of 33.3** |
+
+These numbers come from `scripts/bench_frame_budget.py`, which benches the
+newest ring segment using the live config's settings; re-run it after any
+pipeline change.
 
 (The rejected full-4K remap measures ~7 ms standalone on an unloaded CPU; the
 ~44 ms figure above is what it cost *inside* the contended pipeline, which is
@@ -141,7 +145,7 @@ never enters the loop at all**: encoding stays on the camera, decoding stays
 on the grabber thread (which also implements the drop policy — the loop
 always takes the freshest frame and never queues), clip export and the
 annotated 4K render run on their own worker, and the police classifier ran as
-an async pipeline with bounded queues that drop under backpressure. The ~4×
+an async pipeline with bounded queues that drop under backpressure. The ~3×
 headroom that leaves is not waste; it's what absorbs bursts (multi-car frames,
 exporter contention during an event) without dropping to the fragmentation
 regime this whole section exists to avoid. The ring-mode revert below is the
