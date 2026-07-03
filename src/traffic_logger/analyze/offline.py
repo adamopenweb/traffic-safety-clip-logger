@@ -212,13 +212,24 @@ def run_offline(
                                 candidate_events.append(ev)
                                 if event_manager is not None:
                                     event_manager.add(ev, ts)
-                                log.info(
-                                    "EVENT %s track=%d pct=%.3f speed=%.4f dur=%.2fs%s",
-                                    ev.event_type, ev.primary_track_id,
-                                    ev.evidence["percentile"], ev.evidence["speed"],
-                                    ev.evidence["duration_seconds"],
-                                    " (warmup)" if ev.evidence["warmup"] else "",
-                                )
+                                evd = ev.evidence
+                                if evd.get("rule") == "absolute_speeding":
+                                    # The absolute km/h gate carries different
+                                    # evidence keys than the relative rule.
+                                    log.info(
+                                        "EVENT %s track=%d speed=%.1fkm/h (+%.1f over) dur=%.2fs",
+                                        ev.event_type, ev.primary_track_id,
+                                        evd["speed_kmh"], evd.get("over_by_kmh", 0.0),
+                                        evd["duration_seconds"],
+                                    )
+                                else:
+                                    log.info(
+                                        "EVENT %s track=%d pct=%.3f speed=%.4f dur=%.2fs%s",
+                                        ev.event_type, ev.primary_track_id,
+                                        evd["percentile"], evd["speed"],
+                                        evd["duration_seconds"],
+                                        " (warmup)" if evd["warmup"] else "",
+                                    )
 
                     if center_rule is not None:
                         for ev in center_rule.evaluate(tracks, speed_estimator, ts):

@@ -320,6 +320,9 @@ const LOADERS = { now: loadNow, browse: loadBrowse, hall: loadHall, stats: loadS
 let current = "now";
 function switchView(view) {
   current = view;
+  // Deep-linkable tabs: /#stats opens the Stats view directly (replaceState so
+  // tab-hopping doesn't pollute browser history).
+  history.replaceState(null, "", "#" + view);
   $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === view));
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + view).classList.remove("hidden");
@@ -392,7 +395,9 @@ function wire() {
 function start() {
   // If this script loaded at all, the gate already let us in (valid cookie).
   wire();
-  switchView("now");
+  // Honor a #view deep link (e.g. /#stats); fall back to the Now page.
+  const initial = location.hash.slice(1);
+  switchView(LOADERS[initial] ? initial : "now");
   // PC clock: sync the offset to the server, then tick locally; re-sync slowly.
   syncClock();
   setInterval(tickClock, 250);
