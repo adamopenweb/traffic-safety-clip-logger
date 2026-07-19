@@ -49,7 +49,7 @@ The production instance renders exactly this UI over the live data.
 | --- | --- |
 | ![Browse grid with speed/type/date filters](docs/images/dashboard-browse.png) | ![Top Speeds leaderboard with ranked fastest passes](docs/images/dashboard-hall.png) |
 
-**At a glance:** ~140,000 vehicle passes measured · GPS-drive-by-validated
+**At a glance:** ~336,000 vehicle passes measured · GPS-drive-by-validated
 km/h · three evidence tiers (log row → still → annotated clip) · 300+ tests
 that need no camera, GPU, or CV stack (see the note under
 [Requirements](#requirements)).
