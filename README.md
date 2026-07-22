@@ -6,14 +6,14 @@
 
 A local-first system that watches a residential street 24/7, measures the
 speed of **every** passing vehicle against a GPS-validated calibration, and
-automatically saves tiered evidence (from a log row up to an annotated 4K
-clip) for the ones driving dangerously.
+automatically saves tiered clips (from a log row up to an annotated clip)
+for the fastest passes.
 
 **Deployed and running around the clock** on a single Windows PC (RTX 4080)
 with a 4K PoE camera: one process stream-copies the camera's H.265 feed into a
 ~9-day ring buffer *and* analyzes it live on the GPU; a supervisor keeps it
 alive; a web dashboard behind a secret-link gate reports results as
-*"X% of N cars"*, because every pass is counted, not just the violators. See
+*"X% of N cars"*, because every pass is counted, not just the fastest ones. See
 **[DEPLOY.md](DEPLOY.md)** for the bring-up.
 
 > **This repo is a portfolio snapshot of a private working system, built
@@ -43,7 +43,7 @@ The production instance renders exactly this UI over the live data.
 
 | Live view | Stats |
 | --- | --- |
-| ![Now page: headline stats and the latest speeding clips](docs/images/dashboard-now.png) | ![Stats page: per-day violations, hour-of-day histogram, speed distribution, vehicle breakdown](docs/images/dashboard-stats.png) |
+| ![Now page: headline stats and the latest speeding clips](docs/images/dashboard-now.png) | ![Stats page: per-day speeding counts, hour-of-day histogram, speed distribution, vehicle breakdown](docs/images/dashboard-stats.png) |
 
 | Browse | Top speeds |
 | --- | --- |
